@@ -3,6 +3,7 @@ name: Python - Lab Tests
 on:
   workflow_dispatch:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: ["main"]
     paths:
       - "python/packages/lab/**"
@@ -17,6 +18,7 @@ env:
 
 jobs:
   paths-filter:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -43,7 +45,7 @@ jobs:
   python-lab-tests:
     name: Python Lab Tests
     needs: paths-filter
-    if: needs.paths-filter.outputs.pythonChanges == 'true'
+    if: ${{ (needs.paths-filter.outputs.pythonChanges == 'true') && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: true

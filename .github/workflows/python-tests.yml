@@ -2,6 +2,7 @@ name: Python - Tests
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: ["main", "feature*"]
     paths:
       - "python/**"
@@ -11,6 +12,7 @@ env:
 
 jobs:
   python-tests:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     name: Python Tests
     runs-on: ${{ matrix.os }}
     strategy:
