@@ -30,7 +30,19 @@ permissions:
 
 jobs:
   paths-filter:
-    runs-on: ubuntu-latest
+    if: >-
+      ${{
+        (
+          !contains(fromJSON('["pull_request","pull_request_target"]'), github.event_name)
+          || github.event.pull_request.head.repo.full_name == github.repository
+          || (github.event_name == 'pull_request_target' && github.event.pull_request.merged == true)
+        )
+        && (
+          github.event_name != 'workflow_run'
+          || github.event.workflow_run.head_repository.full_name == github.repository
+        )
+      }}
+    runs-on: [self-hosted, Linux]
     permissions:
       contents: read
       pull-requests: read
@@ -61,7 +73,19 @@ jobs:
 
   dotnet-build-and-test:
     needs: paths-filter
-    if: needs.paths-filter.outputs.dotnetChanges == 'true'
+    if: >-
+      ${{
+        (needs.paths-filter.outputs.dotnetChanges == 'true')
+        && (
+          !contains(fromJSON('["pull_request","pull_request_target"]'), github.event_name)
+          || github.event.pull_request.head.repo.full_name == github.repository
+          || (github.event_name == 'pull_request_target' && github.event.pull_request.merged == true)
+        )
+        && (
+          github.event_name != 'workflow_run'
+          || github.event.workflow_run.head_repository.full_name == github.repository
+        )
+      }}
     strategy:
       fail-fast: false
       matrix:
@@ -71,7 +95,12 @@ jobs:
           - { targetFramework: "net8.0", os: "ubuntu-latest", configuration: Release }
           - { targetFramework: "net472", os: "windows-latest", configuration: Release, integration-tests: true, environment: "integration" }
 
-    runs-on: ${{ matrix.os }}
+    runs-on: >-
+      ${{
+        startsWith(matrix.os, 'windows-') && fromJSON('["self-hosted","Windows"]')
+        || startsWith(matrix.os, 'ubuntu-') && fromJSON('["self-hosted","Linux"]')
+        || matrix.os
+      }}
     environment: ${{ matrix.environment }}
     steps:
       - uses: actions/checkout@v6
@@ -243,8 +272,20 @@ jobs:
 
   # This final job is required to satisfy the merge queue. It must only run (or succeed) if no tests failed
   dotnet-build-and-test-check:
-    if: always()
-    runs-on: ubuntu-latest
+    if: >-
+      ${{
+        (always())
+        && (
+          !contains(fromJSON('["pull_request","pull_request_target"]'), github.event_name)
+          || github.event.pull_request.head.repo.full_name == github.repository
+          || (github.event_name == 'pull_request_target' && github.event.pull_request.merged == true)
+        )
+        && (
+          github.event_name != 'workflow_run'
+          || github.event.workflow_run.head_repository.full_name == github.repository
+        )
+      }}
+    runs-on: [self-hosted, Linux]
     needs: [dotnet-build-and-test]
     steps:
       - name: Get Date

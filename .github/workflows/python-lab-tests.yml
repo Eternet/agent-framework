@@ -17,7 +17,19 @@ env:
 
 jobs:
   paths-filter:
-    runs-on: ubuntu-latest
+    if: >-
+      ${{
+        (
+          !contains(fromJSON('["pull_request","pull_request_target"]'), github.event_name)
+          || github.event.pull_request.head.repo.full_name == github.repository
+          || (github.event_name == 'pull_request_target' && github.event.pull_request.merged == true)
+        )
+        && (
+          github.event_name != 'workflow_run'
+          || github.event.workflow_run.head_repository.full_name == github.repository
+        )
+      }}
+    runs-on: [self-hosted, Linux]
     permissions:
       contents: read
       pull-requests: read
@@ -43,8 +55,25 @@ jobs:
   python-lab-tests:
     name: Python Lab Tests
     needs: paths-filter
-    if: needs.paths-filter.outputs.pythonChanges == 'true'
-    runs-on: ${{ matrix.os }}
+    if: >-
+      ${{
+        (needs.paths-filter.outputs.pythonChanges == 'true')
+        && (
+          !contains(fromJSON('["pull_request","pull_request_target"]'), github.event_name)
+          || github.event.pull_request.head.repo.full_name == github.repository
+          || (github.event_name == 'pull_request_target' && github.event.pull_request.merged == true)
+        )
+        && (
+          github.event_name != 'workflow_run'
+          || github.event.workflow_run.head_repository.full_name == github.repository
+        )
+      }}
+    runs-on: >-
+      ${{
+        startsWith(matrix.os, 'windows-') && fromJSON('["self-hosted","Windows"]')
+        || startsWith(matrix.os, 'ubuntu-') && fromJSON('["self-hosted","Linux"]')
+        || matrix.os
+      }}
     strategy:
       fail-fast: true
       matrix:
